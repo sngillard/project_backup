@@ -133,7 +133,7 @@ def main_menu():
         print("4. Exit program")
         print("**************************************")
 
-        choice = input("enter your choice (1-4): ")
+        choice = input("Enter your choice (1-4): ")
 
         if choice == "1":
             time_str = input("Enter time (HH:MM:SS or HH:MM): ")
