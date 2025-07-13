@@ -21,6 +21,8 @@ class Package:
         self.delivery_deadline = delivery_deadline
         self.weight_kilo = weight_kilo
         self.special_notes = special_notes
+        self.time_delivered = None 
+        self.truck_departure_time = None 
 
 # Create and initalize a string containing the details of a Package object to print package details to command line interface. 
     def __str__(self):
