@@ -17,7 +17,7 @@ def load_address_file(filename):
         csv_reader = csv.reader(csv_file)
         for row in csv_reader:
             # row[1] is the address, skip row[0] because it's the hub
-            address_list.append(row[1].strip())
+            address_list.append(row[2].strip())
 
 # Load distance table from wgups_distance_file.csv
 def load_distance_table(filename):
@@ -30,23 +30,26 @@ def load_distance_table(filename):
 
 # Get distance between two addresses from csv files for distance and addresses
 def get_distance(address1, address2):
+    address1 = address1.strip()
+    address2 = address2.strip()
+
     try:
         index1 = address_list.index(address1)
         index2 = address_list.index(address2)
     except ValueError:
-        print(f"Address not found: {address1} or {address2}")
+        print(f"Address not found: '{address1}' or '{address2}'") # DEBUG REMOVE ONCE WORKING
         return 0.0
     
 # Check distance from address1 to address 2. 
 # If distnace is missing/empty for address1 to address2, look up reverse (address 2 to address 1).
 # If row 2, column 14 is empty on the distance table then it's not showing distance from address 2 to address 14, so the code clips it and checks the distance from address 14 to address 2 which is row 14 column 2. 
-    if distance_matrix[index1][index2] != 0:
-        return distance_matrix[index1][index2]
-    else:
-        return distance_matrix[index2][index1]
+    distance = distance_matrix[index1][index2]
+    if distance == 0.0:
+        distance = distance_matrix[index2][index1]
+    return distance 
 
 # Constant for Hub address format to match from wgups_address_file.csv
-HUB_ADDRESS = "Western Governors University,4001 South 700 East"
+HUB_ADDRESS = "4001 South 700 East"
 
 # Truck class
 # This class models a delivery truck with truck ID, start time, assigned packages (manually loaded), current location, miles traveled, and the current time tracking.
@@ -93,7 +96,7 @@ truck3 = Truck(
 # Used datetime.strptime() example from pages 90-91 to set truck departure times. 
 
 # Delivery simulation using Nearest-Neighbor Algorithm
-def deliver_packages(truck):
+def deliver_packages(truck, check_time):
     while truck.packages:
         # Get current location of truck
         current_address = truck.current_location
@@ -107,18 +110,27 @@ def deliver_packages(truck):
             if distance < shortest_distance:
                 shortest_distance = distance
                 closest_package = package
+        
+        travel_time = timedelta(hours = shortest_distance / 18) # Trucks travel at 18mph
+        arrival_time = truck.time + travel_time
+
+        # Stop if next delivery is beyond the check_time
+        if arrival_time > check_time:
+            break
 
         # Drive to the closest package to be delivered on the truck
         truck.add_miles(shortest_distance)
-        truck.current_location = (closest_package.address) 
-        closest_package.time_delivered = truck.time
+        truck.current_location = closest_package.address 
+        closest_package.time_delivered = arrival_time
         closest_package.truck_departure_time = truck.start_time
+        truck.time = arrival_time
         truck.packages.remove(closest_package.package_id) # Remove delivered package from truck's package list
 
-    # Drive back to the Hub
-    distance_to_hub = get_distance(truck.current_location, HUB_ADDRESS)
-    truck.add_miles(distance_to_hub)
-    truck.current_location = HUB_ADDRESS
+    # Drive back to the Hub if finished early
+    if truck.time < check_time and truck.current_location != HUB_ADDRESS:
+        distance_to_hub = get_distance(truck.current_location, HUB_ADDRESS)
+        truck.add_miles(distance_to_hub)
+        truck.current_location = HUB_ADDRESS
 
 ''' WGUPS delivery program user interface loops through meny options until the user selects option 4- Exit program. Depending on the user's choice, the main_menu function calls other functions for package status lookups, single package search, or total miles calculation.
 '''
@@ -197,18 +209,44 @@ def lookup_package(package_id, time_str):
         status = "En Route"
     print(f"Package {package_id}: {status}\n")
 
+def reset_trucks():
+    # Reset trucks to inital state with origintal package assignments
+    truck1.time = truck1.start_time
+    truck2.time = truck2.start_time
+    truck3.time = truck3.start_time
+    truck1.miles_traveled = 0.0
+    truck2.miles_traveled = 0.0
+    truck3.miles_traveled = 0.0
+    truck1.current_location = HUB_ADDRESS
+    truck2.current_location = HUB_ADDRESS
+    truck3.current_location = HUB_ADDRESS
+
+    # Reload original package truck assignments
+    truck1.packages = [1, 7, 8, 13, 14, 15, 16, 19, 20, 29, 30, 31, 34, 37, 40]
+    truck2.packages = [3, 5, 6, 10, 11, 12, 17, 18, 21, 22, 23, 24, 25,28, 36, 38]
+    truck3.packages = [2, 4, 9, 26, 27, 32, 33, 35, 39]
+
+    # Reset package delivery statuses
+    for package_id in range(1, 41):
+        package = package_hash.get(package_id)
+        package.time_delivered = datetime.max
+        package.truck_departure_time = datetime.min
+
 # Function to calculate total miles travled by all trucks at a specific time provided by the user.
 def show_total_miles(time_str):
     check_time = parse_time_input(time_str)
     if not check_time:
         return
-    total_miles = 0.0
-    if truck1.time <= check_time:
-        total_miles += truck1.miles_traveled
-    if truck2.time <= check_time:
-        total_miles += truck2.miles_traveled
-    if truck3.time <= check_time:
-        total_miles += truck3.miles_traveled
+    
+    # Reset the trucks and package status
+    reset_trucks() 
+
+    # Simulate deliveries up to the check_time time
+    deliver_packages(truck1, check_time)
+    deliver_packages(truck2, check_time)
+    deliver_packages(truck3, check_time)
+
+    total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
 
 # Load data from CSV files
@@ -216,10 +254,8 @@ load_address_file("wgups_address_file.csv")
 load_distance_table("wgups_distance_table.csv")
 load_package_data("wgups_package_file.csv")
 
-# Simulate the deliveries for all trucks
-deliver_packages(truck1)
-deliver_packages(truck2)
-deliver_packages(truck3)
+# Simulate the delivery day
+end_of_day = datetime.strptime("17:00:00", "%H:%M:%S") 
 
 # Start the command line program
 if __name__ == "__main__":

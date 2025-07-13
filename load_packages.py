@@ -11,9 +11,12 @@ package_hash = HashTable()
 # Load the package data from CSV
 def load_package_data(filename):
     with open(filename, mode='r', encoding='utf-8-sig') as csv_file:
-        csv_read = csv.reader(csv_file)
-        for row in csv_read:
+        csv_reader = csv.reader(csv_file)
+        next(csv_reader) # Skip header row
+        for row in csv_reader:
             # Get information from each row
+            if not row or not row[0].strip().isdigit(): # Skip emoty rows
+                continue
             package_id = int(row[0])
             address = row[1]
             city = row[2]
@@ -21,7 +24,7 @@ def load_package_data(filename):
             zip_code = row[4]
             deadline = row[5]
             weight = row[6]
-            special_notes = row[7]
+            special_notes = row[7] if len(row) > 7 else ""
 
             # Create new Package object
             package = Package(package_id, address, city, state, zip_code, deadline, weight, special_notes)
@@ -36,5 +39,5 @@ def load_package_data(filename):
 # Call the load_package_data function
 load_package_data('wgups_package_file.csv')
 
-# Print all packages to test REMOVE LATER- DEBUG ONLY
+# TO DEBUG- REMOVE LATER- PRINT ALL PACKAGES TO TEST
 package_hash.print()

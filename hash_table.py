@@ -47,7 +47,10 @@ class HashTable:
 
     def _resize(self):
          # Double the table size to the next prime number and rehash all the entries to allow for scalability/self-adjustment. 
-        print("Resizing HashTable...")
+
+        # DEBUG print lines REMOVE
+        print('Resizing HashTable....')
+
         former_map = self.map
         self.size = self.size * 2 + 1 # Gets the next odd number
         self.map = [None] * self.size
