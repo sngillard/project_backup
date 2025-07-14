@@ -37,7 +37,7 @@ def get_distance(address1, address2):
         index1 = address_list.index(address1)
         index2 = address_list.index(address2)
     except ValueError:
-        print(f"Address not found: '{address1}' or '{address2}'") # DEBUG REMOVE ONCE WORKING
+        print(f"Address not found: '{address1}' or '{address2}'") 
         return 0.0
     
 # Check distance from address1 to address 2. 
@@ -104,6 +104,7 @@ def deliver_packages(truck, check_time):
         shortest_distance = float('inf')
 
         # Find the closest package address
+        # for loop scans all n packages on first iteration, on second iteration is scans n-1 packages, on third iteration it scans n-2 packages, etc. until only 1 package is left. This is n + (n-1) + (n-2) + ... + 1 iterations... the time complexity is O(n^2) because the time complexity is O(n) for each query. 
         for package_id in truck.packages:
             package = package_hash.get(package_id)
             distance = get_distance(current_address, package.address)
