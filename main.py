@@ -141,7 +141,7 @@ def main_menu():
         print("**************************************")
         print("1. View all package statuses at a time")
         print("2. Look up a single package at a time")
-        print("3. View total miles traveled by trucks")
+        print("3. View truck summary (packages & mileage)")
         print("4. Exit program")
         print("**************************************")
 
@@ -156,7 +156,7 @@ def main_menu():
             lookup_package(package_id, time_str)
         elif choice == "3":
             time_str = input("Enter time (HH:MM:SS or HH:MM):")
-            show_total_miles(time_str)
+            show_truck_summary(time_str)
         elif choice == "4":
             print("Exiting program. Goodbye!")
             break
@@ -248,6 +248,43 @@ def show_total_miles(time_str):
 
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
+
+# Show truck summary at specific time
+def show_truck_summary(time_str):
+    check_time = parse_time_input(time_str)
+    if not check_time:
+        return
+    
+    # Reset trucks and simulate deliveries
+    reset_trucks()
+    deliver_packages(truck1, check_time)
+    deliver_packages(truck2, check_time)
+    deliver_packages(truck3, check_time)
+
+    # Print truck summary
+    print("*************** TRUCK SUMMARY ***************")
+    print(f"Summary at {check_time.strftime('%H:%M:%S')}")
+    print("*********************************************")
+    for truck in [truck1, truck2, truck3]:
+        print(f"\nTruck {truck.truck_id} Summary:")
+        print(f" Departure Time: {truck.start_time.strftime('%H:%M:%S')}")
+        print(f" Current Location: {truck.current_location}")
+        print(f" Miles Traveled: {truck.miles_traveled:.2f}")
+        print(f" Packages Delivered:")
+        delivered = False
+        for package_id in range(1,41):
+            package = package_hash.get(package_id)
+            if package.time_delivered <= check_time and package.truck_departure_time == truck.start_time:
+                print(f" Package {package.package_id}: Delivered at {package.time_delivered.strftime('%H:%M:%S')}")
+                delivered = True
+        if not delivered:
+            print(" No packages delivered yet.")
+        print("*********************************************")
+
+    total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
+    print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}")
+    print("*********************************************")
+
 
 # Load data from CSV files
 load_address_file("wgups_address_file.csv")
