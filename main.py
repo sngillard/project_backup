@@ -180,6 +180,12 @@ def view_all_packages(time_str):
     check_time = parse_time_input(time_str)
     if not check_time:
         return
+    
+    # Reset trucks and simulate deliveries up to the time selected by user
+    reset_trucks()
+    deliver_packages(truck1, check_time)
+    deliver_packages(truck2, check_time)
+    deliver_packages(truck3, check_time)
 
     print(f"\nPackage statuses at {check_time.strftime('%H:%M:%S')}")
     for package_id in range(1, 41):
@@ -192,13 +198,24 @@ def view_all_packages(time_str):
             status = "En Route"
         print(f"Package {package_id}: {status}")
 
+    # Print total mileage for this time
+    total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
+    print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}")
+
 # Function to look up a single package status
 # This function displays the delivery status of a specific package (by package ID) at a time specified by the user.
 def lookup_package(package_id, time_str):
     check_time = parse_time_input(time_str)
     if not check_time:
         return
-# Lookup the package and print status
+    
+    # Reset trucks and simulate deliveries up to time specified by user
+    reset_trucks()
+    deliver_packages(truck1, check_time)
+    deliver_packages(truck2, check_time)
+    deliver_packages(truck3, check_time)
+
+    # Lookup the package and print status
     package = package_hash.get(package_id)
     print(f"\nStatus of Package: {package_id} at {check_time.strftime('%H:%M:%S')}")
     if package.time_delivered < check_time:
@@ -208,6 +225,10 @@ def lookup_package(package_id, time_str):
     else:
         status = "En Route"
     print(f"Package {package_id}: {status}\n")
+
+    # Print total mileage for this time
+    total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
+    print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
 
 def reset_trucks():
     # Reset trucks to inital state with origintal package assignments
