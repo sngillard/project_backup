@@ -41,7 +41,7 @@ def get_distance(address1, address2):
         return 0.0
     
 # Check distance from address1 to address 2. 
-# If distnace is missing/empty for address1 to address2, look up reverse (address 2 to address 1).
+# If distance is missing/empty for address1 to address2, look up reverse (address 2 to address 1).
 # If row 2, column 14 is empty on the distance table then it's not showing distance from address 2 to address 14, so the code clips it and checks the distance from address 14 to address 2 which is row 14 column 2. 
     distance = distance_matrix[index1][index2]
     if distance == 0.0:
@@ -58,7 +58,7 @@ class Truck:
     def __init__(self, truck_id, start_time, packages):
         self.truck_id = truck_id
         self.start_time = start_time
-        self.packages = packages # List of package IDs assinged to a truck
+        self.packages = packages # List of package IDs assigned to a truck
         self.current_location = HUB_ADDRESS
         self.miles_traveled = 0.0
         self.time = start_time # Track the time during deliveries 
@@ -67,7 +67,7 @@ class Truck:
         self.miles_traveled += miles
         self.time += timedelta(hours = miles / 18) # Truck speed is 18mph
 
-# Truck objects for the three trucks, manually assinged packages. These 3 trucks are created with preloaded packages and departure times from the Hub based on delivery constraints. 
+# Truck objects for the three trucks, manually assigned packages. These 3 trucks are created with preloaded packages and departure times from the Hub based on delivery constraints. 
 
 # Truck 1 leaves first, Truck 2 leave after Truck 1 returns or delayed packages arrive, Truck 3 waits until package 9 address correction is made at 10:20 AM. 
 
@@ -82,7 +82,7 @@ truck1 = Truck(
 truck2 = Truck(
     truck_id  = 2,
     start_time = datetime.strptime("09:15:00", "%H:%M:%S"),
-    packages = [3, 5, 6, 10, 11, 12, 17, 18, 21, 22, 23, 24, 25,28, 36, 38] # Packages required to be on Truck 2 and the delayed package 6 (16 total)
+    packages = [3, 5, 10, 11, 12, 17, 18, 21, 22, 23, 24, 36, 38] 
 )
 
 # Truck 3 leaves last and finishes the EOD deliveries 
@@ -92,11 +92,29 @@ truck3 = Truck(
     packages = [2, 4, 9, 26, 27, 32, 33, 35, 39] # Package 9 was delayed until 10:20 AM plus remaining packages. (9 total)
 )
 
-# Citation: McGrath, M. (2022). Python in Easy Steps, 2nd Edition.
-# Used datetime.strptime() example from pages 90-91 to set truck departure times. 
+# Delayed packages
+delayed_packages = [6, 25, 28, 32]
+delayed_package_ready_time = {
+    6: datetime.strptime("09:05:00", "%H:%M:%S"),
+    25: datetime.strptime("09:05:00", "%H:%M:%S"),
+    28: datetime.strptime("09:05:00", "%H:%M:%S"),
+    32: datetime.strptime("09:05:00", "%H:%M:%S"),
+    9: datetime.strptime("10:20:00", "%H:%M:%S")
+}
 
 # Delivery simulation using Nearest-Neighbor Algorithm
 def deliver_packages(truck, check_time):
+    # Stop early departures
+    if truck.start_time > check_time:
+        return
+    
+    # Assign truck number to all packages when the truck leaves the hub
+    for package_id in truck.packages:
+        package = package_hash.get(package_id)
+        if package.truck_id is None:
+            package.truck_id = truck.truck_id
+            package.truck_departure_time = truck.start_time 
+    
     while truck.packages:
         # Get current location of truck
         current_address = truck.current_location
@@ -107,10 +125,40 @@ def deliver_packages(truck, check_time):
         # for loop scans all n packages on first iteration, on second iteration is scans n-1 packages, on third iteration it scans n-2 packages, etc. until only 1 package is left. This is n + (n-1) + (n-2) + ... + 1 iterations... the time complexity is O(n^2) because the time complexity is O(n) for each query. 
         for package_id in truck.packages:
             package = package_hash.get(package_id)
+
+            # Skip DELAYED packages
+            if package_id in delayed_package_ready_time:
+                if delayed_package_ready_time[package_id] > check_time:
+                    continue
+
+            # Skip package 9 if address is not corrected yet
+            if package_id == 9 and check_time < datetime.strptime("10:20:00", "%H:%M:%S"):
+                continue
+
+            # Skip packages that must be on Truck 2
+            if package_id in [3, 18, 36, 38] and truck.truck_id != 2:
+                continue
+
+            # Skip packages that must be delivered together/grouped on same truck
+            # Package 14 must be delivered with 15 & 19
+            if package_id in [15, 19] and 14 in truck.packages:
+                continue
+
+            # Package 16 must be delivered with 13 and 19
+            if package_id in [13, 19] and 16 in truck.packages:
+                continue
+            
+            # Package 20 must be delivered with 13 & 15
+            if package_id in [13, 15] and 20 in truck.packages:
+                continue
+
             distance = get_distance(current_address, package.address)
             if distance < shortest_distance:
                 shortest_distance = distance
                 closest_package = package
+
+        if closest_package is None:
+            break
         
         travel_time = timedelta(hours = shortest_distance / 18) # Trucks travel at 18mph
         arrival_time = truck.time + travel_time
@@ -124,8 +172,37 @@ def deliver_packages(truck, check_time):
         truck.current_location = closest_package.address 
         closest_package.time_delivered = arrival_time
         closest_package.truck_departure_time = truck.start_time
+        closest_package.truck_id = truck.truck_id # Assign truck number
         truck.time = arrival_time
         truck.packages.remove(closest_package.package_id) # Remove delivered package from truck's package list
+
+        # Check for packages that must be delivered together and if they are all on the truck deliver them
+        if closest_package.package_id == 14:
+            for package_id in [15, 19]:
+                if package_id in truck.packages:
+                    group_packages = package_hash.get(package_id)
+                    group_packages.time_delivered = arrival_time
+                    group_packages.truck_departure_time = truck.start_time
+                    group_packages.truck_id = truck.truck_id
+                    truck.packages.remove(package_id)
+
+        if closest_package.package_id == 16:
+            for package_id in [13, 19]:
+                if package_id in truck.packages:
+                    group_packages = package_hash.get(package_id)
+                    group_packages.time_delivered = arrival_time
+                    group_packages.truck_departure_time = truck.start_time
+                    group_packages.truck_id = truck.truck_id
+                    truck.packages.remove(package_id)
+
+        if closest_package.package_id == 20:
+            for package_id in [13, 15]:
+                if package_id in truck.packages:
+                    group_packages = package_hash.get(package_id)
+                    group_packages.time_delivered = arrival_time
+                    group_packages.truck_departure_time = truck.start_time
+                    group_packages.truck_id = truck.truck_id
+                    truck.packages.remove(package_id)
 
     # Drive back to the Hub if finished early
     if truck.time < check_time and truck.current_location != HUB_ADDRESS:
@@ -133,7 +210,7 @@ def deliver_packages(truck, check_time):
         truck.add_miles(distance_to_hub)
         truck.current_location = HUB_ADDRESS
 
-''' WGUPS delivery program user interface loops through meny options until the user selects option 4- Exit program. Depending on the user's choice, the main_menu function calls other functions for package status lookups, single package search, or total miles calculation.
+''' WGUPS delivery program user interface loops through many options until the user selects option 4- Exit program. Depending on the user's choice, the main_menu function calls other functions for package status lookups, single package search, or total miles calculation.
 '''
 def main_menu():
     while True: # Loop through options until user exists
@@ -191,13 +268,30 @@ def view_all_packages(time_str):
     print(f"\nPackage statuses at {check_time.strftime('%H:%M:%S')}")
     for package_id in range(1, 41):
         package = package_hash.get(package_id)
-        if package.time_delivered < check_time:
-            status = f"Delivered at: {package.time_delivered.strftime('%H:%M:%S')}"
+        if package_id in delayed_package_ready_time and delayed_package_ready_time[package_id] > check_time:
+            status = "DELAYED - At Hub"
+        elif package.time_delivered < check_time:
+            status = f"DELIVERED at {package.time_delivered.strftime('%H:%M:%S')}"
+        # Check if truck assigned to the packages have left yet
+        elif truck1.start_time > check_time and package.package_id in truck1.packages:
+            status = "AT HUB"
+        elif truck2.start_time > check_time and package.package_id in truck2.packages:
+            status = "AT HUB"
+        elif truck3.start_time > check_time and package.package_id in truck3.packages:
+            status = "AT HUB"
         elif package.truck_departure_time > check_time:
-            status = "At Hub"
+            status = "AT HUB"
         else:
-            status = "En Route"
-        print(f"Package {package_id}: {status}")
+            status = "EN ROUTE"
+
+
+        print(f"Package {package_id} | "
+              f"Address: {package.address} | " f"Deadline: {package.delivery_deadline} | " 
+              f"Truck: {package.truck_id if package.truck_id else 'Not assigned'} | " 
+              f"Delivery Time: {package.time_delivered.strftime('%H:%M:%S') if package.time_delivered != datetime.max else 'N/A'} | " 
+              f"Weight (in kilos): {package.weight_kilo} | "
+              f"Special Notes: {package.special_notes} | "
+              f"Status: {status}\n")
 
     # Print total mileage for this time
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
@@ -232,7 +326,7 @@ def lookup_package(package_id, time_str):
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
 
 def reset_trucks():
-    # Reset trucks to inital state with origintal package assignments
+    # Reset trucks to initial state with original package assignments
     truck1.time = truck1.start_time
     truck2.time = truck2.start_time
     truck3.time = truck3.start_time
@@ -245,7 +339,7 @@ def reset_trucks():
 
     # Reload original package truck assignments
     truck1.packages = [1, 7, 8, 13, 14, 15, 16, 19, 20, 29, 30, 31, 34, 37, 40]
-    truck2.packages = [3, 5, 6, 10, 11, 12, 17, 18, 21, 22, 23, 24, 25,28, 36, 38]
+    truck2.packages = [3, 5, 10, 11, 12, 17, 18, 21, 22, 23, 24, 36, 38]
     truck3.packages = [2, 4, 9, 26, 27, 32, 33, 35, 39]
 
     # Reset package delivery statuses
@@ -253,8 +347,9 @@ def reset_trucks():
         package = package_hash.get(package_id)
         package.time_delivered = datetime.max
         package.truck_departure_time = datetime.min
+        package.truck_id = None 
 
-# Function to calculate total miles travled by all trucks at a specific time provided by the user.
+# Function to calculate total miles traveled by all trucks at a specific time provided by the user.
 def show_total_miles(time_str):
     check_time = parse_time_input(time_str)
     if not check_time:

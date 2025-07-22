@@ -49,7 +49,7 @@ class HashTable:
          # Double the table size to the next prime number and rehash all the entries to allow for scalability/self-adjustment. 
 
         # DEBUG print lines REMOVE
-        print('Resizing HashTable....')
+        # print('Resizing HashTable....')
 
         former_map = self.map
         self.size = self.size * 2 + 1 # Gets the next odd number
@@ -61,13 +61,23 @@ class HashTable:
                     self.add(pair[0], pair[1]) # Re-add all key-value pairs to re-sized table
 
     def print(self):
+         # Get all key-value pairs
+        all_packages = []
+        for bucket in self.map:
+            if bucket is not None:
+                for pair in bucket:
+                    all_packages.append(pair)
+
+        # Sort by package ID (key) so they print in numerical order
+        all_packages.sort() 
+
          # Print the entire HashTable to debug
-         print('---WGUPS PACKAGE HASH TABLE---')
-         for item in self.map:
-              if item is not None:
-                   for pair in item:
-                    print(f"Package ID: {pair[0]}")
-                    print(pair[1]) # Calls __str__ in Package class
-                    print() 
-
-
+        ''' 
+        print('---WGUPS PACKAGE HASH TABLE---')
+        for pair in all_packages:
+            key = pair[0]
+            package = pair[1]
+            print(f"Package ID: {key}")
+            print(f"Address: {package.address}, City: {package.city}, State: {package.state}, Zip Code: {package.zip_code}")
+            print(f"Delivery Deadline: {package.delivery_deadline}, Weight (in kilo): {package.weight_kilo}, Special Notes: {package.special_notes}\n")
+        '''

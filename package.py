@@ -29,7 +29,7 @@ class Package:
         return (
             #Print package ID and address information on first list
             #Print delivery deadline, package weight, and notes on second line
-            f"Package ID: {self.package_id},  Address: {self.address}, City: {self.city}, State: {self.state}, Zip Code: {self.zip_code}"
+            f"Address: {self.address}, City: {self.city}, State: {self.state}, Zip Code: {self.zip_code}\n"
             f"Delivery Deadline: {self.delivery_deadline}, Weight (in kilo): {self.weight_kilo}, Special Notes: {self.special_notes}"
             )
     
