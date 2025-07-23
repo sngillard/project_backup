@@ -102,6 +102,10 @@ delayed_package_ready_time = {
     9: datetime.strptime("10:20:00", "%H:%M:%S")
 }
 
+# Function to sort packages by deadline and distance 
+def sort_by_deadline_then_distance(package_item):
+    return package_item[0], package_item[1]
+
 # Delivery simulation using Nearest-Neighbor Algorithm
 def deliver_packages(truck, check_time):
     # Only simulate the deliveries if the truck has left
@@ -113,7 +117,7 @@ def deliver_packages(truck, check_time):
         ready_time = delayed_package_ready_time[package_id]
         if ready_time <= truck.start_time:
             package = package_hash.get(package_id)
-            # If delpayed package isn't already assigned to a truck
+            # If delayed package isn't already assigned to a truck
             if package.truck_id is None: # Not assigned a truck yet
                 # If possible, assign to Truck 2, else to Truck 3
                 if truck.truck_id == 2: 
@@ -123,18 +127,17 @@ def deliver_packages(truck, check_time):
     
     # Assign truck number and departure time when truck leaves the hub
     for package_id in truck.packages:
-            package = package_hash.get(package_id)
-            if package.truck_id is None:
-                package.truck_id = truck.truck_id
-                package.truck_departure_time = truck.start_time
+        package = package_hash.get(package_id)
+        if package.truck_id is None:
+            package.truck_id = truck.truck_id
+            package.truck_departure_time = truck.start_time
     
     while truck.packages:
         # Get current location of truck
         current_address = truck.current_location
-        closest_package = None
-        shortest_distance = float('inf')
+        # Sort available packages on the truck by deadline and distance
+        available_packages = []
 
-        # Find the closest package to deliver 
         for package_id in truck.packages:
             package = package_hash.get(package_id)
 
@@ -143,12 +146,12 @@ def deliver_packages(truck, check_time):
                 if delayed_package_ready_time[package_id] > check_time:
                     continue
 
-            # Skip package 9 if address is not corrected yet
+            # Skip package 9 if address is not corrected yet, or change address if after 10:20
             if package_id == 9:
                 if check_time < datetime.strptime("10:20:00", "%H:%M:%S"):
                     continue
-                # Correct the address for package 9 at 10:20
-                package.address = "410 S State St" # The corrected address
+                else:
+                    package.address = "410 S State St" # The corrected address
 
             # Skip packages that must be on Truck 2
             if package_id in [3, 18, 36, 38] and truck.truck_id != 2:
@@ -165,58 +168,53 @@ def deliver_packages(truck, check_time):
             if package_id in [13, 15] and 20 in truck.packages:
                 continue
 
+            try:
+                deadline = datetime.strptime(package.delivery_deadline, "%H:%M:%S")
+            except ValueError:
+                deadline = datetime.strptime("23:59:00", "%H:%M:%S")
+
             # Find distance to a package 
             distance = get_distance(current_address, package.address)
-            if distance < shortest_distance:
-                shortest_distance = distance
-                closest_package = package
+            available_packages.append((deadline, distance, package))
 
-        if closest_package is None:
-            break # Nothing close to deliver now
+        # Exit loop if no valid packages available 
+        if len(available_packages) == 0:
+            break
+
+        # Sort packages by deadline then distance from the current location 
+        available_packages.sort(key = sort_by_deadline_then_distance)
+        closest_deadline, shortest_distance, closest_package = available_packages[0]
         
         travel_time = timedelta(hours = shortest_distance / 18) # Trucks travel at 18mph
         arrival_time = truck.time + travel_time
 
-        # Stop if next delivery is beyond the check_time
-        if arrival_time > check_time:
-            break
-
-        # Drive package location
+        # Deliver the closest package
         truck.add_miles(shortest_distance)
-        truck.current_location = closest_package.address 
+        truck.current_location = closest_package.address
         closest_package.time_delivered = arrival_time
         closest_package.truck_departure_time = truck.start_time
-        closest_package.truck_id = truck.truck_id # Assign truck number
+        closest_package.truck_id = truck.truck_id
         truck.time = arrival_time
-        truck.packages.remove(closest_package.package_id) # Remove delivered package from truck's package list
 
-        # Check for packages that must be delivered together and if they are all on the truck deliver them
-        if closest_package.package_id == 14:
-            for package_id in [15, 19]:
-                if package_id in truck.packages:
-                    group_packages = package_hash.get(package_id)
-                    group_packages.time_delivered = arrival_time
-                    group_packages.truck_departure_time = truck.start_time
-                    group_packages.truck_id = truck.truck_id
-                    truck.packages.remove(package_id)
+        if closest_package.package_id in truck.packages:
+            truck.packages.remove(closest_package.package_id)
 
-        if closest_package.package_id == 16:
-            for package_id in [13, 19]:
-                if package_id in truck.packages:
-                    group_packages = package_hash.get(package_id)
-                    group_packages.time_delivered = arrival_time
-                    group_packages.truck_departure_time = truck.start_time
-                    group_packages.truck_id = truck.truck_id
-                    truck.packages.remove(package_id)
+        # Deliver packages that must be grouped together
+        grouped_packages = {
+            14: [15, 19],
+            16: [13, 19], 
+            20: [13, 15]
+        }
 
-        if closest_package.package_id == 20:
-            for package_id in [13, 15]:
-                if package_id in truck.packages:
-                    group_packages = package_hash.get(package_id)
-                    group_packages.time_delivered = arrival_time
-                    group_packages.truck_departure_time = truck.start_time
-                    group_packages.truck_id = truck.truck_id
-                    truck.packages.remove(package_id)
+        if closest_package.package_id in grouped_packages:
+            for package_id in grouped_packages[closest_package.package_id]:
+                p = package_hash.get(package_id)
+                if p.time_delivered == datetime.max:
+                    p.time_delivered = arrival_time
+                    p.truck_departure_time = truck.start_time
+                    p.truck_id = truck.truck_id
+                    if package_id in truck.packages:
+                        truck.packages.remove(package_id)
 
     # Drive back to the Hub if finished early
     if truck.time < check_time and truck.current_location != HUB_ADDRESS:
@@ -330,48 +328,36 @@ def lookup_package(package_id, time_str):
     deliver_packages(truck2, check_time)
     deliver_packages(truck3, check_time)
 
-    # Print the package and print status
-    print(f"\nStatus of Package: {package_id} at {check_time.strftime('%H:%M:%S')}")
+    package = package_hash.get(package_id)
 
-    for package_id in range(1, 41):
-        package = package_hash.get(package_id)
+    if not package:
+        print(f"Package {package_id} not found.")
+        return
     
-        # Determine status of package
-        if package_id in delayed_package_ready_time and delayed_package_ready_time[package_id] > check_time:
-            # Logic if a pacakge is still delayed
-            if package_id == 9:
-                status = f"DELAYED - Address correction at 10:20"
-            else:
-                ready_time = delayed_package_ready_time[package_id].strftime('%H:%M')
-                status = f"DELAYED - Available at {ready_time}"
-        elif package.time_delivered < check_time:
-            # Delayed package is now delivered 
-            status = f"Delivered at: {package.time_delivered.strftime('%H:%M:%S')}"
-        elif package.truck_departure_time > check_time:
-            # Package is loaded but truck is still at hub
-            status = "AT HUB"
+    # Determine status of a package
+    if package_id in delayed_package_ready_time and delayed_package_ready_time[package_id] > check_time:
+        if package_id == 9:
+            status = f"DELAYED - Address correction at 10:20"
         else:
-            # Package is on truck and en route
-            status = "EN ROUTE"
+            ready_time = delayed_package_ready_time[package_id].strftime('%H:%M')
+            status = f"DELAYED - Available at {ready_time}"
+    elif package.time_delivered < check_time:
+        status = f"DELIVERED at {package.time_delivered.strftime('%H:%M:%S')}"
+    elif package.truck_departure_time > check_time or package.truck_id is None:
+        status = "AT HUB"
     else:
-        # Package logic for non-delayed packages
-        if package.time_delivered < check_time:
-            status = f"DELIVERED at {package.time_delivered.strftime('%H:%M:%A')}"
-        elif package.truck_departure_time > check_time or package.truck_is is None:
-            status = "AT HUB"
-        else:
-            status = "EN ROUTE"
+        status = "EN ROUTE"
 
-    print(f"Package {package.package_id} | "
+    # Print results for package number specified by user
+    print(f"\nPackage {package.package_id} | "
           f"Address: {package.address} | "
           f"Deadline: {package.delivery_deadline} | "
-          f"Truck: {package.truck_id if package.truck_id else 'Not assigned' } | "
-          f"Delivery Time: {package.time_delivered.strftime('%H:%M:%S') if package.time_delivered != datetime.max else 'N/A'} | "
+          f"Truck: {package.truck_id if package.truck_id else 'Not assigned'} | "
           f"Weight (in kilos): {package.weight_kilo} | "
           f"Special Notes: {package.special_notes} | "
           f"Status: {status}\n"
           )
-
+    
     # Print total mileage for this time
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
@@ -464,13 +450,12 @@ def show_truck_summary(time_str):
             # Print the delivered packages
             delivered = [package_hash.get(package_id) for package_id in range(1, 41)
                      if package_hash.get(package_id).truck_id == truck.truck_id and package_hash.get(package_id).time_delivered <= check_time]
-        if delivered:
-            print("Delivered Packages:")
-            for p in delivered:
-                print(f" - Package {p.package_id}: Delivered at {p.time_delivered.strftime('%H:%M:%S')}")
-        else:
-            print(" No packages delivered yet.")
-        print("*********************************************")
+            if delivered:
+                print("Delivered Packages:")
+                for p in delivered:
+                    print(f" - Package {p.package_id}: Delivered at {p.time_delivered.strftime('%H:%M:%S')}")
+            else:
+                print(" No packages delivered yet.")
 
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}")
@@ -487,7 +472,4 @@ end_of_day = datetime.strptime("17:00:00", "%H:%M:%S")
 
 # Start the command line program
 if __name__ == "__main__":
-    print(f"Truck 1 miles: {truck1.miles_traveled}")
-    print(f"Truck 2 miles: {truck2.miles_traveled}")
-    print(f"Truck 3 miles: {truck3.miles_traveled}")
     main_menu()
