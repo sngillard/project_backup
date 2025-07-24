@@ -323,7 +323,7 @@ def view_all_packages(time_str):
             package.address = "300 State St" # Wrong address before correction
         else:
             package.address = package.address # Corrected address
-            
+
         print(f"\n*********** Package {package.package_id} ***********")
         print(f"Address: {package.address} | " 
               f"Deadline: {package.delivery_deadline} | " 
@@ -383,7 +383,7 @@ def lookup_package(package_id, time_str):
 
     # Print results for package number specified by user
     print(f"\n*********** Package {package.package_id} ***********")
-    print(f"Address: {package.address} | " 
+    print(f"Address: {address} | " 
           f"Deadline: {package.delivery_deadline} | "
           f"Truck: {package.truck_id if package.truck_id else 'Not assigned'} | "
           f"Weight (in kilos): {package.weight_kilo} | "
