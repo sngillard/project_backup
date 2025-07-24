@@ -310,6 +310,7 @@ def view_all_packages(time_str):
             # Truck has left and package is en route for delivery
             status = "EN ROUTE"
 
+        print(f"\n*********** Truck {package.truck_id if package.truck_id else 'Unassigned'} ***********")
         print(f"Package {package_id} | "
               f"Address: {package.address} | " f"Deadline: {package.delivery_deadline} | " 
               f"Truck: {package.truck_id if package.truck_id else 'Not assigned'} | " 
