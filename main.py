@@ -114,10 +114,18 @@ def sort_by_deadline_then_distance(package_item):
 
 # Delivery simulation using Nearest-Neighbor Algorithm
 def deliver_packages(truck, check_time):
+    # Address correction for package 9 at 10:20 AM
+    if check_time >= datetime.strptime("10:20:00", "%H:%M:%S"):
+        package9 = package_hash.get(9)
+        package9.address = "410 S State St"
+        package9.city = "Salt Lake City"
+        package9.state = "UT"
+        package9.zip_code = "84111"
+    
     # Only simulate the deliveries if the truck has left
     if truck.start_time > check_time:
         return # Truck not departed yet
-    
+
     # Check if any delayed packages are ready now and assign them to a truck
     for package_id in delayed_package_ready_time:
         ready_time = delayed_package_ready_time[package_id]
@@ -310,6 +318,12 @@ def view_all_packages(time_str):
             # Truck has left and package is en route for delivery
             status = "EN ROUTE"
 
+        # For package 9, only update address after 10:20
+        if package.package_id == 9 and check_time < datetime.strptime("10:20:00", "%H:%M:%S"):
+            package.address = "300 State St" # Wrong address before correction
+        else:
+            package.address = package.address # Corrected address
+            
         print(f"\n*********** Package {package.package_id} ***********")
         print(f"Address: {package.address} | " 
               f"Deadline: {package.delivery_deadline} | " 
@@ -360,6 +374,12 @@ def lookup_package(package_id, time_str):
         status = "AT HUB"
     else:
         status = "EN ROUTE"
+
+    # For package 9, only update address after 10:20
+    if package_id == 9 and check_time < datetime.strptime("10:20:00", "%H:%M:%S"):
+        address = "300 State St" # Original incorrect address
+    else:
+        address = package.address
 
     # Print results for package number specified by user
     print(f"\n*********** Package {package.package_id} ***********")
