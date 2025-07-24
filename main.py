@@ -310,17 +310,22 @@ def view_all_packages(time_str):
             # Truck has left and package is en route for delivery
             status = "EN ROUTE"
 
-        print(f"\n*********** Truck {package.truck_id if package.truck_id else 'Unassigned'} ***********")
-        print(f"Package {package_id} | "
-              f"Address: {package.address} | " f"Deadline: {package.delivery_deadline} | " 
+        print(f"\n*********** Package {package.package_id} ***********")
+        print(f"Address: {package.address} | " 
+              f"Deadline: {package.delivery_deadline} | " 
               f"Truck: {package.truck_id if package.truck_id else 'Not assigned'} | " 
               f"Delivery Time: {package.time_delivered.strftime('%H:%M:%S') if package.time_delivered != datetime.max else 'N/A'} | " 
               f"Weight (in kilos): {package.weight_kilo} | "
               f"Special Notes: {package.special_notes} | "
               f"Status: {status}\n")
 
-    # Print total mileage for this time
+    # Total mileage for this time
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
+
+    print(f"\n*********** TRUCK MILEAGE SUMMARY at {check_time.strftime('%H:%M:%S')} ***********")
+    print(f"Truck 1 mileage: {truck1.miles_traveled:.2f} miles")
+    print(f"Truck 2 mileage: {truck2.miles_traveled:.2f} miles")
+    print(f"Truck 3 mileage: {truck3.miles_traveled:.2f} miles")
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}")
 
 # Function to look up a single package status
@@ -357,8 +362,8 @@ def lookup_package(package_id, time_str):
         status = "EN ROUTE"
 
     # Print results for package number specified by user
-    print(f"\nPackage {package.package_id} | "
-          f"Address: {package.address} | "
+    print(f"\n*********** Package {package.package_id} ***********")
+    print(f"Address: {package.address} | " 
           f"Deadline: {package.delivery_deadline} | "
           f"Truck: {package.truck_id if package.truck_id else 'Not assigned'} | "
           f"Weight (in kilos): {package.weight_kilo} | "
@@ -368,7 +373,11 @@ def lookup_package(package_id, time_str):
     
     # Print total mileage for this time
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
-    print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
+    print(f"\n*********** TRUCK MILEAGE SUMMARY at {check_time.strftime('%H:%M:%S')} ***********")
+    print(f"Truck 1 mileage: {truck1.miles_traveled:.2f} miles")
+    print(f"Truck 2 mileage: {truck2.miles_traveled:.2f} miles")
+    print(f"Truck 3 mileage: {truck3.miles_traveled:.2f} miles")
+    print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}")
 
 def reset_trucks():
     # Reset trucks to initial state with original package assignments
@@ -410,66 +419,6 @@ def show_total_miles(time_str):
 
     total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
     print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}\n")
-
-# Show truck summary at specific time
-def show_truck_summary(time_str):
-    check_time = parse_time_input(time_str)
-    if not check_time:
-        return
-    
-    # Reset trucks and simulate deliveries
-    reset_trucks()
-    deliver_packages(truck1, check_time)
-    deliver_packages(truck2, check_time)
-    deliver_packages(truck3, check_time)
-
-    # Print truck summary
-    print("*************** TRUCK SUMMARY ***************")
-    print(f"Summary at {check_time.strftime('%H:%M:%S')}")
-    print("*********************************************")
-
-    for truck in [truck1, truck2, truck3]:
-        print(f"\nTruck {truck.truck_id} Summary:")
-        print(f" Departure Time: {truck.start_time.strftime('%H:%M:%S')}")
-        print(f" Current Location: {truck.current_location}")
-        print(f" Miles Traveled: {truck.miles_traveled:.2f}")
-
-        # Show packages currently loaded on truck
-        print(" Packages Loaded:")
-        for package_id in truck.packages:
-            package = package_hash.get(package_id)
-            if package.truck_departure_time <= check_time and package.time_delivered > check_time:
-                print(f" - Package {package.package_id}: "
-                    f"Address: {package.address}, "
-                    f"Deadline: {package.delivery_deadline}, "
-                    f"Weight: {package.weight_kilo}kg,"
-                    f"Status: EN ROUTE")
-
-        # Show delivered packages
-        print(" Delivered Packages:")
-        for package_id in range(1, 41):
-            package = package_hash.get(package_id)
-            if package.time_delivered == truck.truck_id and package.time_delivered <= check_time:
-                print(f" - Package {package.package_id}: "
-                    f"Address: {package.address}, "
-                    f"Deadline: {package.delivery_deadline}, "
-                    f"Weight: {package.weight_kilo}kg, "
-                    f"Status: DELIVERED at: {package.time_delivered.strftime('%H:%M:%S')}")
-                
-        # Show scheduled packages if the truck hasn't departed yet    
-        if check_time < truck.start_time:
-            print(" Schedule for Future Departure:")
-            for package_id in truck.packages:
-                package = package_hash.get(package_id)
-                print(f" - Package {package.package_id}: "
-                      f"Address: {package.address}, "
-                      f"Deadline: {package.delivery_deadline}, "
-                      f"Status: WAITING at HUB")
-
-    total_miles = truck1.miles_traveled + truck2.miles_traveled + truck3.miles_traveled
-    print(f"\nTotal miles traveled by all trucks at {check_time.strftime('%H:%M:%S')}: {total_miles:.2f}")
-    print("*********************************************")
-
 
 # Load data from CSV files
 load_address_file("wgups_address_file.csv")
