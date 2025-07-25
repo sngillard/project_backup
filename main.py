@@ -1,4 +1,4 @@
-# Student ID: 011588831
+
 
 from datetime import datetime, timedelta
 from hash_table import HashTable
